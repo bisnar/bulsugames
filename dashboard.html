@@ -222,154 +222,152 @@
       <a href="index.html" class="btn">Back to Homepage</a>
     </div>
 
-    <script type="module">
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-      import {
-        getDatabase,
-        ref,
-        get,
-        remove,
-        child,
-      } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
+   <script type="module">
+  // 1️⃣ Import Firebase modules
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+  import {
+    getDatabase,
+    ref,
+    get,
+    remove,
+    child,
+  } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
 
-      // 1. CONFIGURATION
-      const firebaseConfig = {
-        databaseURL:
-          "https://bulsugames-3dab7-default-rtdb.firebaseio.com",
-      };
+  // 2️⃣ Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyC2JLGE9dWPSmnnU2T3TIHHjucCLuS1xek",
+    authDomain: "bulsugames-3dab7.firebaseapp.com",
+    databaseURL: "https://bulsugames-3dab7-default-rtdb.firebaseio.com",
+    projectId: "bulsugames-3dab7",
+    storageBucket: "bulsugames-3dab7.appspot.com",
+    messagingSenderId: "822229800905",
+    appId: "1:822229800905:web:52612889fe0ddcaf32fa18",
+  };
 
-      // 2. INITIALIZE
-      const app = initializeApp(firebaseConfig);
-      const db = getDatabase(app);
+  // 3️⃣ Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
 
-      // DOM Elements
-      const tableBody = document.getElementById("scoresTableBody");
-      const noScoresMessage = document.getElementById("noScoresMessage");
-      const loadingMessage = document.getElementById("loadingMessage");
-      const statusIndicator = document.getElementById("statusIndicator");
+  // 4️⃣ DOM Elements
+  const tableBody = document.getElementById("scoresTableBody");
+  const noScoresMessage = document.getElementById("noScoresMessage");
+  const loadingMessage = document.getElementById("loadingMessage");
+  const statusIndicator = document.getElementById("statusIndicator");
 
-      // ------------------------------------------
-      // FETCH & NORMALIZE DATA
-      // ------------------------------------------
-      window.refreshScores = function () {
-        loadingMessage.style.display = "block";
-        noScoresMessage.style.display = "none";
-        tableBody.innerHTML = "";
-        statusIndicator.textContent = "Fetching...";
-        statusIndicator.style.color = "#ffd166";
+  // ------------------------------------------
+  // FETCH & RENDER DATA
+  // ------------------------------------------
+  window.refreshScores = function () {
+    loadingMessage.style.display = "block";
+    noScoresMessage.style.display = "none";
+    tableBody.innerHTML = "";
+    statusIndicator.textContent = "Fetching...";
+    statusIndicator.style.color = "#ffd166";
 
-        const dbRef = ref(db);
+    const dbRef = ref(db);
 
-        get(child(dbRef, "scores"))
-          .then((snapshot) => {
-            loadingMessage.style.display = "none";
-            statusIndicator.textContent = "Live";
-            statusIndicator.style.color = "#4cd964";
+    get(child(dbRef, "scores"))
+      .then((snapshot) => {
+        loadingMessage.style.display = "none";
+        if (snapshot.exists()) {
+          const data = snapshot.val();
 
-            if (snapshot.exists()) {
-              const data = snapshot.val();
+          // Convert object to array
+          let scoresArray = Object.keys(data).map((key) => data[key]);
 
-              // Convert object to array
-              let scoresArray = Object.keys(data).map((key) => data[key]);
+          // Sort by timestamp (newest first)
+          scoresArray.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-              // Sort by timestamp (Newest first)
-              // This handles both ISO strings and numbers correctly
-              scoresArray.sort((a, b) => {
-                const dateA = new Date(a.timestamp);
-                const dateB = new Date(b.timestamp);
-                return dateB - dateA;
-              });
+          renderTable(scoresArray);
+          statusIndicator.textContent = "Live";
+          statusIndicator.style.color = "#4cd964";
+        } else {
+          noScoresMessage.style.display = "block";
+          statusIndicator.textContent = "Live (No Data)";
+          statusIndicator.style.color = "#ffcc00";
+        }
+      })
+      .catch((error) => {
+        loadingMessage.style.display = "none";
+        statusIndicator.textContent = "Error";
+        statusIndicator.style.color = "#ff4d4d";
+        console.error("Error fetching data:", error);
+        alert("Error: " + error.message);
+      });
+  };
 
-              renderTable(scoresArray);
-            } else {
-              noScoresMessage.style.display = "block";
-            }
-          })
-          .catch((error) => {
-            loadingMessage.style.display = "none";
-            statusIndicator.textContent = "Error";
-            statusIndicator.style.color = "#ff4d4d";
-            console.error("Error fetching data:", error);
-            alert("Error: " + error.message);
-          });
-      };
+  // ------------------------------------------
+  // RENDER TABLE FUNCTION
+  // ------------------------------------------
+  function renderTable(scores) {
+    tableBody.innerHTML = "";
+    scores.forEach((score, index) => {
+      const row = document.createElement("tr");
 
-      // ------------------------------------------
-      // RENDER TABLE (HANDLES DIFFERENT TYPES)
-      // ------------------------------------------
-      function renderTable(scores) {
-        tableBody.innerHTML = "";
+      // Rank
+      row.innerHTML += `<td>${index + 1}</td>`;
 
-        scores.forEach((score, index) => {
-          const row = document.createElement("tr");
+      // Player Name
+      const pName = score.playerName || "Guest";
+      row.innerHTML += `<td style="font-weight:bold;">${pName}</td>`;
 
-          // 1. Rank
-          row.innerHTML += `<td>${index + 1}</td>`;
+      // Game Type Badge
+      let rawGameName = score.gameName || score.gameType || "Unknown";
+      let badgeClass = "bg-unknown";
 
-          // 2. Player Name
-          // Fallback to 'Guest' if name is missing
-          const pName = score.playerName || "Guest";
-          row.innerHTML += `<td style="font-weight:bold;">${pName}</td>`;
+      if (rawGameName.includes("Hangman")) badgeClass = "bg-hangman";
+      else if (rawGameName.includes("Spelling")) badgeClass = "bg-spelling";
+      else if (rawGameName.includes("Word Search")) badgeClass = "bg-wordsearch";
 
-          // 3. Game Type (HANDLING DIFFERENT KEYS HERE)
-          // Checks gameName first, then gameType, then defaults
-          let rawGameName = score.gameName || score.gameType || "Unknown";
-          let badgeClass = "bg-unknown";
+      row.innerHTML += `<td><span class="game-badge ${badgeClass}">${rawGameName}</span></td>`;
 
-          if (rawGameName.includes("Hangman")) badgeClass = "bg-hangman";
-          else if (rawGameName.includes("Spelling")) badgeClass = "bg-spelling";
-          else if (rawGameName.includes("Word Search"))
-            badgeClass = "bg-wordsearch";
+      // Score
+      row.innerHTML += `<td class="score-value">${score.score}</td>`;
 
-          row.innerHTML += `<td><span class="game-badge ${badgeClass}">${rawGameName}</span></td>`;
-
-          // 4. Score
-          row.innerHTML += `<td class="score-value">${score.score}</td>`;
-
-          // 5. Date (HANDLING DIFFERENT FORMATS HERE)
-          let dateDisplay = "Unknown";
-          if (score.timestamp) {
-            // Works for both "2025-12-29..." (string) and 176704... (number)
-            const dateObj = new Date(score.timestamp);
-            dateDisplay = dateObj.toLocaleString([], {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            });
-          }
-          row.innerHTML += `<td class="date-cell">${dateDisplay}</td>`;
-
-          tableBody.appendChild(row);
+      // Date
+      let dateDisplay = "Unknown";
+      if (score.timestamp) {
+        const dateObj = new Date(score.timestamp);
+        dateDisplay = dateObj.toLocaleString([], {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
         });
       }
+      row.innerHTML += `<td class="date-cell">${dateDisplay}</td>`;
 
-      // ------------------------------------------
-      // CLEAR DATABASE
-      // ------------------------------------------
-      window.clearAllScores = function () {
-        if (
-          confirm(
-            "⚠️ ARE YOU SURE? \nThis will delete ALL player scores from the live database. This cannot be undone."
-          )
-        ) {
-          const scoresRef = ref(db, "scores");
-          remove(scoresRef)
-            .then(() => {
-              alert("Database cleared.");
-              window.refreshScores();
-            })
-            .catch((error) => {
-              alert("Error: " + error.message);
-            });
-        }
-      };
+      tableBody.appendChild(row);
+    });
+  }
 
-      // Auto-load
-      document.addEventListener("DOMContentLoaded", () => {
-        window.refreshScores();
-      });
-    </script>
+  // ------------------------------------------
+  // CLEAR DATABASE FUNCTION
+  // ------------------------------------------
+  window.clearAllScores = function () {
+    if (
+      confirm(
+        "⚠️ ARE YOU SURE?\nThis will delete ALL player scores from the live database. This cannot be undone."
+      )
+    ) {
+      const scoresRef = ref(db, "scores");
+      remove(scoresRef)
+        .then(() => {
+          alert("Database cleared.");
+          window.refreshScores();
+        })
+        .catch((error) => {
+          alert("Error: " + error.message);
+        });
+    }
+  };
+
+  // Auto-load data on page load
+  document.addEventListener("DOMContentLoaded", () => {
+    window.refreshScores();
+  });
+</script>
+
   </body>
 </html>
